@@ -77,15 +77,10 @@
       line-height: 34px;
       text-align: center;
     }
-    table.cal td.other .solar {
-      color: #bbb;
-    }
-    table.cal td.other .lunar {
-      color: #ccc;
-    }
+    table.cal td.other .solar { color: #bbb; }
+    table.cal td.other .lunar { color: #ccc; }
     .festival { color: #000; font-weight: bold; }
 
-    /* 天气区域 */
     .weather-wrap {
       width: 100%;
       max-width: 580px;
@@ -111,27 +106,11 @@
       flex: 1;
       padding: 2px;
     }
-    .weather-day .wd {
-      font-size: 14px;
-      color: #555;
-    }
-    .weather-day .wi {
-      font-size: 22px;
-      margin: 2px 0;
-    }
-    .weather-day .wt {
-      font-size: 14px;
-      font-weight: bold;
-    }
-    .weather-day .wdesc {
-      font-size: 11px;
-      color: #888;
-      margin-top: 1px;
-    }
-    .weather-day.wtoday .wd {
-      font-weight: bold;
-      color: #000;
-    }
+    .weather-day .wd { font-size: 14px; color: #555; }
+    .weather-day .wi { font-size: 22px; margin: 2px 0; }
+    .weather-day .wt { font-size: 14px; font-weight: bold; }
+    .weather-day .wdesc { font-size: 11px; color: #888; margin-top: 1px; }
+    .weather-day.wtoday .wd { font-weight: bold; color: #000; }
   </style>
 </head>
 <body>
@@ -139,13 +118,12 @@
   <div class="time" id="time">00:00</div>
   <div class="today-info" id="todayInfo"></div>
   <table class="cal" id="calTable"></table>
-  <div class="weather-wrap" id="weatherWrap">
+  <div class="weather-wrap">
     <div class="weather-loc" id="weatherLoc">天气加载中...</div>
     <div class="weather-row" id="weatherRow"></div>
   </div>
 </div>
 <script>
-// ===== 强制使用 UTC+8 时区 =====
 function getCST() {
   var now = new Date();
   var utc = now.getTime() + now.getTimezoneOffset() * 60000;
@@ -302,80 +280,124 @@ function buildCalendar(year, month, today) {
   return html;
 }
 
-// ===== 天气相关 =====
+// ===== 天气 =====
 var weatherCodeMap = {
-  0:'☀️ 晴', 1:'🌤 晴', 2:'⛅ 多云', 3:'☁️ 阴',
-  45:'🌫 雾', 48:'🌫 冻雾',
-  51:'🌦 小毛毛雨', 53:'🌦 毛毛雨', 55:'🌦 密毛毛雨',
-  56:'🌧 冻毛毛雨', 57:'🌧 密冻毛毛雨',
-  61:'🌧 小雨', 63:'🌧 中雨', 65:'🌧 大雨',
-  66:'🌧 冻雨', 67:'🌧 大冻雨',
-  71:'🌨 小雪', 73:'🌨 中雪', 75:'🌨 大雪',
-  77:'🌨 雪粒',
-  80:'🌦 小阵雨', 81:'🌧 阵雨', 82:'🌧 大阵雨',
-  85:'🌨 小阵雪', 86:'🌨 大阵雪',
-  95:'⛈ 雷暴', 96:'⛈ 雷暴冰雹', 99:'⛈ 大雷暴冰雹'
+  0:['☀️','晴'],1:['🌤','晴'],2:['⛅','多云'],3:['☁️','阴'],
+  45:['🌫','雾'],48:['🌫','冻雾'],
+  51:['🌦','小雨'],53:['🌦','中雨'],55:['🌦','大雨'],
+  56:['🌧','冻雨'],57:['🌧','冻雨'],
+  61:['🌧','小雨'],63:['🌧','中雨'],65:['🌧','大雨'],
+  66:['🌧','冻雨'],67:['🌧','冻雨'],
+  71:['🌨','小雪'],73:['🌨','中雪'],75:['🌨','大雪'],77:['🌨','雪粒'],
+  80:['🌦','阵雨'],81:['🌧','阵雨'],82:['🌧','大阵雨'],
+  85:['🌨','阵雪'],86:['🌨','大阵雪'],
+  95:['⛈','雷暴'],96:['⛈','冰雹'],99:['⛈','冰雹']
 };
-
-function getWeatherIcon(code) {
-  var entry = weatherCodeMap[code];
-  if (!entry) return '❓ 未知';
-  return entry;
-}
-
-function getWeatherShort(code) {
-  var entry = weatherCodeMap[code];
-  if (!entry) return '未知';
-  // 取文字部分（去掉 emoji 和空格）
-  return entry.replace(/^[^\u4e00-\u9fff]+/, '');
-}
-
-function getWeatherEmoji(code) {
-  var entry = weatherCodeMap[code];
-  if (!entry) return '❓';
-  return entry.split(' ')[0];
-}
-
 var weekLabels = ['周日','周一','周二','周三','周四','周五','周六'];
 
-function loadWeather() {
-  // 第一步：通过 IP 获取经纬度
-  var xhr1 = new XMLHttpRequest();
-  xhr1.open('GET', 'https://ip-api.com/json/?lang=zh-CN', true);
-  xhr1.onreadystatechange = function() {
-    if (xhr1.readyState === 4 && xhr1.status === 200) {
-      try {
-        var geo = JSON.parse(xhr1.responseText);
-        var lat = geo.lat;
-        var lon = geo.lon;
-        var city = geo.city || geo.regionName || '';
-        document.getElementById('weatherLoc').innerHTML = '📍 ' + city;
-        fetchForecast(lat, lon);
-      } catch(e) {
-        document.getElementById('weatherLoc').innerHTML = '定位失败';
-      }
-    }
+// JSONP 通用加载器（兼容 Kindle 旧浏览器）
+function jsonp(url, callbackParam, callback) {
+  var cbName = '_jsonp_' + Math.floor(Math.random() * 100000);
+  window[cbName] = function(data) {
+    callback(data);
+    try { delete window[cbName]; } catch(e) { window[cbName] = null; }
+    var s = document.getElementById(cbName);
+    if (s) s.parentNode.removeChild(s);
   };
-  xhr1.send();
+  var script = document.createElement('script');
+  script.id = cbName;
+  script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + callbackParam + '=' + cbName;
+  document.getElementsByTagName('head')[0].appendChild(script);
+
+  // 超时处理
+  setTimeout(function() {
+    if (window[cbName]) {
+      window[cbName] = function(){};
+      callback(null);
+    }
+  }, 10000);
+}
+
+// 备用坐标（如果 IP 定位失败，请改成你所在城市的经纬度）
+// 当前默认：上海
+var fallbackLat = 31.23;
+var fallbackLon = 121.47;
+var fallbackCity = '上海';
+
+function loadWeather() {
+  // 方案1：用 JSONP 请求 ip-api
+  jsonp('http://ip-api.com/json/?lang=zh-CN', 'callback', function(geo) {
+    if (geo && geo.status === 'success') {
+      document.getElementById('weatherLoc').innerHTML = geo.city || geo.regionName || '';
+      fetchForecast(geo.lat, geo.lon);
+    } else {
+      // 方案2：尝试 XHR
+      tryXhr();
+    }
+  });
+}
+
+function tryXhr() {
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'http://ip-api.com/json/?lang=zh-CN', true);
+    xhr.timeout = 8000;
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            var geo = JSON.parse(xhr.responseText);
+            if (geo.status === 'success') {
+              document.getElementById('weatherLoc').innerHTML = geo.city || geo.regionName || '';
+              fetchForecast(geo.lat, geo.lon);
+              return;
+            }
+          } catch(e) {}
+        }
+        // 都失败了，用备用坐标
+        useFallback();
+      }
+    };
+    xhr.ontimeout = function() { useFallback(); };
+    xhr.send();
+  } catch(e) {
+    useFallback();
+  }
+}
+
+function useFallback() {
+  document.getElementById('weatherLoc').innerHTML = fallbackCity;
+  fetchForecast(fallbackLat, fallbackLon);
 }
 
 function fetchForecast(lat, lon) {
   var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
     '&longitude=' + lon +
     '&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=7';
-  var xhr2 = new XMLHttpRequest();
-  xhr2.open('GET', url, true);
-  xhr2.onreadystatechange = function() {
-    if (xhr2.readyState === 4 && xhr2.status === 200) {
-      try {
-        var data = JSON.parse(xhr2.responseText);
-        renderWeather(data.daily);
-      } catch(e) {
-        document.getElementById('weatherRow').innerHTML = '天气数据加载失败';
+
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 10000;
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            var data = JSON.parse(xhr.responseText);
+            renderWeather(data.daily);
+            return;
+          } catch(e) {}
+        }
+        document.getElementById('weatherLoc').innerHTML = '天气加载失败';
       }
-    }
-  };
-  xhr2.send();
+    };
+    xhr.ontimeout = function() {
+      document.getElementById('weatherLoc').innerHTML = '天气请求超时';
+    };
+    xhr.send();
+  } catch(e) {
+    document.getElementById('weatherLoc').innerHTML = '天气加载失败';
+  }
 }
 
 function renderWeather(daily) {
@@ -390,20 +412,21 @@ function renderWeather(daily) {
     var dayLabel = (dateStr === todayStr) ? '今天' : weekLabels[dt.getDay()];
     var isToday = (dateStr === todayStr) ? ' wtoday' : '';
     var code = daily.weathercode[i];
+    var info = weatherCodeMap[code] || ['❓','未知'];
     var tMax = Math.round(daily.temperature_2m_max[i]);
     var tMin = Math.round(daily.temperature_2m_min[i]);
 
     html += '<div class="weather-day' + isToday + '">';
     html += '<div class="wd">' + dayLabel + '</div>';
-    html += '<div class="wi">' + getWeatherEmoji(code) + '</div>';
-    html += '<div class="wt">' + tMin + '° / ' + tMax + '°</div>';
-    html += '<div class="wdesc">' + getWeatherShort(code) + '</div>';
+    html += '<div class="wi">' + info[0] + '</div>';
+    html += '<div class="wt">' + tMin + '~' + tMax + '°</div>';
+    html += '<div class="wdesc">' + info[1] + '</div>';
     html += '</div>';
   }
   document.getElementById('weatherRow').innerHTML = html;
 }
 
-// ===== 时钟主逻辑 =====
+// ===== 时钟 =====
 var lastMin = '';
 function update() {
   var now = getCST();
@@ -432,7 +455,7 @@ function update() {
 setInterval(update, 1000);
 update();
 
-// 加载天气（页面加载时 + 每小时刷新一次）
+// 加载天气 + 每小时刷新
 loadWeather();
 setInterval(loadWeather, 3600000);
 
