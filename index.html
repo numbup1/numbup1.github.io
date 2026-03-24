@@ -38,23 +38,15 @@
       text-align: center;
       letter-spacing: 2px;
     }
-    .cal-header {
-      font-size: 20px;
-      font-weight: bold;
-      text-align: left;
-      width: 100%;
-      max-width: 560px;
-      margin-top: 20px;
-      margin-bottom: 6px;
-    }
     table.cal {
       border-collapse: collapse;
       width: 100%;
-      max-width: 560px;
+      max-width: 580px;
+      margin-top: 18px;
     }
     table.cal th {
-      font-size: 16px;
-      padding: 6px 0;
+      font-size: 20px;
+      padding: 8px 0;
       text-align: center;
       border-bottom: 1px solid #ccc;
       color: #555;
@@ -62,27 +54,27 @@
     table.cal td {
       text-align: center;
       vertical-align: top;
-      padding: 4px 2px;
-      height: 52px;
+      padding: 5px 2px;
+      height: 58px;
       width: 14.28%;
     }
     table.cal td .solar {
-      font-size: 18px;
+      font-size: 24px;
       font-weight: bold;
     }
     table.cal td .lunar {
-      font-size: 11px;
+      font-size: 14px;
       color: #666;
-      margin-top: 1px;
+      margin-top: 2px;
     }
     table.cal td.today .solar {
       display: inline-block;
       background: #000;
       color: #fff;
       border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      line-height: 30px;
+      width: 34px;
+      height: 34px;
+      line-height: 34px;
       text-align: center;
     }
     table.cal td.other .solar {
@@ -98,11 +90,16 @@
 <div class="container">
   <div class="time" id="time">00:00</div>
   <div class="today-info" id="todayInfo"></div>
-  <div class="cal-header" id="calHeader"></div>
   <table class="cal" id="calTable"></table>
 </div>
 <script>
-// ========== 农历数据 (1900-2100) ==========
+// ===== 强制使用 UTC+8 时区 =====
+function getCST() {
+  var now = new Date();
+  var utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utc + 8 * 3600000);
+}
+
 var lunarInfo = [
 0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,
 0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,
@@ -187,7 +184,6 @@ function solar2lunar(y, m, d) {
   if (offset === 0 && leap > 0 && lm === leap + 1) { if (!isLeap) { isLeap = true; --lm; } }
   if (offset < 0) { offset += temp; --lm; }
   var ld = offset + 1;
-  // 节气
   var term = '';
   var solarM = m - 1;
   for (var i = solarM * 2; i <= solarM * 2 + 1; i++) {
@@ -195,17 +191,13 @@ function solar2lunar(y, m, d) {
     sDate = new Date(sDate.getUTCFullYear(), sDate.getUTCMonth(), sDate.getUTCDate());
     if (sDate.getDate() === d) { term = solarTerms[i]; break; }
   }
-  // 农历节日
   var lFest = lunarFestivals[lm + '-' + ld] || '';
-  // 公历节日
   var sFest = solarFestivals[m + '-' + d] || '';
   return {
     lYear: ly, lMonth: lm, lDay: ld, isLeap: isLeap,
     monthStr: (isLeap ? '闰' : '') + lunarMonths[lm - 1] + '月',
     dayStr: lunarDays[ld - 1],
-    term: term,
-    lFestival: lFest,
-    sFestival: sFest,
+    term: term, lFestival: lFest, sFestival: sFest,
     animal: Animals[(ly - 4) % 12],
     ganZhiYear: Gan[(ly - 4) % 10] + Zhi[(ly - 4) % 12]
   };
@@ -225,12 +217,10 @@ function isFestOrTerm(y, m, d) {
 }
 
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
-
 function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 
 function buildCalendar(year, month, today) {
   var firstDay = new Date(year, month - 1, 1).getDay();
-  // 周一开始: 0=周日 → 调整
   var startOffset = (firstDay === 0) ? 6 : firstDay - 1;
   var totalDays = daysInMonth(year, month);
   var prevDays = daysInMonth(year, month === 1 ? 12 : month - 1);
@@ -241,23 +231,10 @@ function buildCalendar(year, month, today) {
 
   var html = '<tr><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th></tr>';
   var cells = [];
-
-  // 上月填充
-  for (var i = startOffset - 1; i >= 0; i--) {
-    var dd = prevDays - i;
-    cells.push({ y: prevYear, m: prevMonth, d: dd, other: true });
-  }
-  // 当月
-  for (var d = 1; d <= totalDays; d++) {
-    cells.push({ y: year, m: month, d: d, other: false });
-  }
-  // 下月填充
+  for (var i = startOffset - 1; i >= 0; i--) cells.push({ y: prevYear, m: prevMonth, d: prevDays - i, other: true });
+  for (var d = 1; d <= totalDays; d++) cells.push({ y: year, m: month, d: d, other: false });
   var remain = 7 - (cells.length % 7);
-  if (remain < 7) {
-    for (var j = 1; j <= remain; j++) {
-      cells.push({ y: nextYear, m: nextMonth, d: j, other: true });
-    }
-  }
+  if (remain < 7) for (var j = 1; j <= remain; j++) cells.push({ y: nextYear, m: nextMonth, d: j, other: true });
 
   for (var c = 0; c < cells.length; c++) {
     if (c % 7 === 0) html += '<tr>';
@@ -275,7 +252,7 @@ function buildCalendar(year, month, today) {
 
 var lastMin = '';
 function update() {
-  var now = new Date();
+  var now = getCST(); // 使用 UTC+8
   var h = pad(now.getHours());
   var m = pad(now.getMinutes());
   var curMin = h + ':' + m;
@@ -287,22 +264,19 @@ function update() {
     var y = now.getFullYear();
     var mo = now.getMonth() + 1;
     var d = now.getDate();
-    var days = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    var weekdays = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
     var info = solar2lunar(y, mo, d);
 
     document.getElementById('todayInfo').innerHTML =
-      y + '年' + pad(mo) + '月' + pad(d) + '日  ' + days[now.getDay()] +
+      y + '年' + pad(mo) + '月' + pad(d) + '日  ' + weekdays[now.getDay()] +
       '  ' + info.ganZhiYear + '年（' + info.animal + '）' + info.monthStr + info.dayStr;
 
-    document.getElementById('calHeader').innerHTML = y + '年' + mo + '月';
     document.getElementById('calTable').innerHTML = buildCalendar(y, mo, d);
   }
 }
 
 setInterval(update, 1000);
 update();
-
-// 防休眠
 setInterval(function() { window.scrollTo(0, 0); }, 30000);
 </script>
 </body>
