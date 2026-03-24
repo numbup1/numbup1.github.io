@@ -106,10 +106,10 @@
       flex: 1;
       padding: 2px;
     }
-    .weather-day .wd { font-size: 14px; color: #555; }
-    .weather-day .wi { font-size: 22px; margin: 2px 0; }
-    .weather-day .wt { font-size: 14px; font-weight: bold; }
-    .weather-day .wdesc { font-size: 11px; color: #888; margin-top: 1px; }
+    .weather-day .wd { font-size: 19px; color: #555; }
+    .weather-day .wi { font-size: 27px; margin: 2px 0; }
+    .weather-day .wt { font-size: 19px; font-weight: bold; }
+    .weather-day .wdesc { font-size: 16px; color: #888; margin-top: 1px; }
     .weather-day.wtoday .wd { font-weight: bold; color: #000; }
   </style>
 </head>
@@ -322,7 +322,7 @@ function jsonp(url, callbackParam, callback) {
 // 当前默认：上海
 var fallbackLat = 31.3869323;
 var fallbackLon = 120.9764683;
-var fallbackCity = '昆山';
+var fallbackCity = '中国·昆山';
 
 function loadWeather() {
   // 方案1：用 JSONP 请求 ip-api
