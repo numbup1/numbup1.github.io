@@ -9,7 +9,7 @@
     body {
       background: #fff;
       color: #000;
-      font-family: monospace;
+      font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
       overflow: hidden;
       -webkit-text-size-adjust: none;
     }
@@ -26,9 +26,9 @@
       padding: 10px;
     }
     .time {
-      font-size: 110px;
+      font-size: 150px;
       font-weight: bold;
-      letter-spacing: 4px;
+      letter-spacing: 6px;
       text-align: center;
     }
     .today-info {
@@ -252,7 +252,7 @@ function buildCalendar(year, month, today) {
 
 var lastMin = '';
 function update() {
-  var now = getCST(); // 使用 UTC+8
+  var now = getCST();
   var h = pad(now.getHours());
   var m = pad(now.getMinutes());
   var curMin = h + ':' + m;
