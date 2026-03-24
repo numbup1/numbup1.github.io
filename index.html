@@ -1,4 +1,466 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
- 
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Kindle Clock</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    body {
+      background: #fff;
+      color: #000;
+      font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      overflow: hidden;
+      -webkit-text-size-adjust: none;
+    }
+    .container {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-box-align: center;
+      -webkit-box-pack: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 10px;
+    }
+    .time {
+      font-size: 150px;
+      font-weight: bold;
+      letter-spacing: 6px;
+      text-align: center;
+    }
+    .today-info {
+      font-size: 22px;
+      color: #333;
+      margin-top: 6px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    table.cal {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 580px;
+      margin-top: 18px;
+    }
+    table.cal th {
+      font-size: 20px;
+      padding: 8px 0;
+      text-align: center;
+      border-bottom: 1px solid #ccc;
+      color: #555;
+    }
+    table.cal td {
+      text-align: center;
+      vertical-align: top;
+      padding: 5px 2px;
+      height: 58px;
+      width: 14.28%;
+    }
+    table.cal td .solar {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    table.cal td .lunar {
+      font-size: 14px;
+      color: #666;
+      margin-top: 2px;
+    }
+    table.cal td.today .solar {
+      display: inline-block;
+      background: #000;
+      color: #fff;
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      line-height: 34px;
+      text-align: center;
+    }
+    table.cal td.other .solar { color: #bbb; }
+    table.cal td.other .lunar { color: #ccc; }
+    .festival { color: #000; font-weight: bold; }
+
+    .weather-wrap {
+      width: 100%;
+      max-width: 580px;
+      margin-top: 16px;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+    }
+    .weather-loc {
+      font-size: 14px;
+      color: #999;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .weather-row {
+      display: -webkit-box;
+      display: flex;
+      -webkit-box-pack: justify;
+      justify-content: space-between;
+      text-align: center;
+    }
+    .weather-day {
+      -webkit-box-flex: 1;
+      flex: 1;
+      padding: 2px;
+    }
+    .weather-day .wd { font-size: 14px; color: #555; }
+    .weather-day .wi { font-size: 22px; margin: 2px 0; }
+    .weather-day .wt { font-size: 14px; font-weight: bold; }
+    .weather-day .wdesc { font-size: 11px; color: #888; margin-top: 1px; }
+    .weather-day.wtoday .wd { font-weight: bold; color: #000; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="time" id="time">00:00</div>
+  <div class="today-info" id="todayInfo"></div>
+  <table class="cal" id="calTable"></table>
+  <div class="weather-wrap">
+    <div class="weather-loc" id="weatherLoc">天气加载中...</div>
+    <div class="weather-row" id="weatherRow"></div>
+  </div>
+</div>
+<script>
+function getCST() {
+  var now = new Date();
+  var utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utc + 8 * 3600000);
+}
+
+var lunarInfo = [
+0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,
+0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,
+0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,
+0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,
+0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,
+0x06ca0,0x0b550,0x15355,0x04da0,0x0a5b0,0x14573,0x052b0,0x0a9a8,0x0e950,0x06aa0,
+0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,
+0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b6a0,0x195a6,
+0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,
+0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x05ac0,0x0ab60,0x096d5,0x092e0,
+0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,
+0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,
+0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,
+0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,
+0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,
+0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06b20,0x1a6c4,0x0aae0,
+0x092e0,0x0d2e3,0x0c960,0x0d557,0x0d4a0,0x0da50,0x05d55,0x056a0,0x0a6d0,0x055d4,
+0x052d0,0x0a9b8,0x0a950,0x0b4a0,0x0b6a6,0x0ad50,0x055a0,0x0aba4,0x0a5b0,0x052b0,
+0x0b273,0x06930,0x07337,0x06aa0,0x0ad50,0x14b55,0x04b60,0x0a570,0x054e4,0x0d160,
+0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a4d0,0x0d150,0x0f252,
+0x0d520
+];
+
+var Gan = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+var Zhi = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+var Animals = ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'];
+var lunarMonths = ['正','二','三','四','五','六','七','八','九','十','冬','腊'];
+var lunarDays = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十',
+  '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+  '廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+
+var solarTerms = [
+  '小寒','大寒','立春','雨水','惊蛰','春分','清明','谷雨',
+  '立夏','小满','芒种','夏至','小暑','大暑','立秋','处暑',
+  '白露','秋分','寒露','霜降','立冬','小雪','大雪','冬至'
+];
+var sTermInfo = [
+  0,21208,42467,63836,85337,107014,128867,150921,
+  173149,195551,218072,240693,263343,285989,308563,331033,
+  353350,375494,397447,419210,440795,462224,483532,504758
+];
+
+var lunarFestivals = {
+  '1-1':'春节','1-15':'元宵节','5-5':'端午节',
+  '7-7':'七夕','7-15':'中元节','8-15':'中秋节',
+  '9-9':'重阳节','12-30':'除夕','12-8':'腊八'
+};
+var solarFestivals = {
+  '1-1':'元旦','2-14':'情人节','3-8':'妇女节','3-12':'植树节',
+  '4-1':'愚人节','5-1':'劳动节','5-4':'青年节','6-1':'儿童节',
+  '7-1':'建党节','8-1':'建军节','9-10':'教师节','10-1':'国庆节',
+  '12-25':'圣诞节'
+};
+
+function lYearDays(y) {
+  var sum = 348;
+  for (var i = 0x8000; i > 0x8; i >>= 1) sum += (lunarInfo[y-1900] & i) ? 1 : 0;
+  return sum + leapDays(y);
+}
+function leapMonth(y) { return lunarInfo[y-1900] & 0xf; }
+function leapDays(y) {
+  if (leapMonth(y)) return (lunarInfo[y-1900] & 0x10000) ? 30 : 29;
+  return 0;
+}
+function monthDays(y, m) { return (lunarInfo[y-1900] & (0x10000 >> m)) ? 30 : 29; }
+
+function solar2lunar(y, m, d) {
+  var baseDate = new Date(1900, 0, 31);
+  var objDate = new Date(y, m - 1, d);
+  var offset = Math.floor((objDate - baseDate) / 86400000);
+  var ly = 1900, temp = 0;
+  for (; ly < 2101 && offset > 0; ly++) { temp = lYearDays(ly); offset -= temp; }
+  if (offset < 0) { offset += temp; ly--; }
+  var lm = 1, leap = leapMonth(ly), isLeap = false;
+  for (; lm < 13 && offset > 0; lm++) {
+    if (leap > 0 && lm === (leap + 1) && !isLeap) { --lm; isLeap = true; temp = leapDays(ly); }
+    else { temp = monthDays(ly, lm); }
+    if (isLeap && lm === (leap + 1)) isLeap = false;
+    offset -= temp;
+  }
+  if (offset === 0 && leap > 0 && lm === leap + 1) { if (!isLeap) { isLeap = true; --lm; } }
+  if (offset < 0) { offset += temp; --lm; }
+  var ld = offset + 1;
+  var term = '';
+  var solarM = m - 1;
+  for (var i = solarM * 2; i <= solarM * 2 + 1; i++) {
+    var sDate = new Date(31556925974.7 * (y - 1900) + sTermInfo[i] * 60000);
+    sDate = new Date(sDate.getUTCFullYear(), sDate.getUTCMonth(), sDate.getUTCDate());
+    if (sDate.getDate() === d) { term = solarTerms[i]; break; }
+  }
+  var lFest = lunarFestivals[lm + '-' + ld] || '';
+  var sFest = solarFestivals[m + '-' + d] || '';
+  return {
+    lYear: ly, lMonth: lm, lDay: ld, isLeap: isLeap,
+    monthStr: (isLeap ? '闰' : '') + lunarMonths[lm - 1] + '月',
+    dayStr: lunarDays[ld - 1],
+    term: term, lFestival: lFest, sFestival: sFest,
+    animal: Animals[(ly - 4) % 12],
+    ganZhiYear: Gan[(ly - 4) % 10] + Zhi[(ly - 4) % 12]
+  };
+}
+
+function getDayLabel(y, m, d) {
+  var info = solar2lunar(y, m, d);
+  if (info.sFestival) return info.sFestival;
+  if (info.lFestival) return info.lFestival;
+  if (info.term) return info.term;
+  return info.dayStr;
+}
+
+function isFestOrTerm(y, m, d) {
+  var info = solar2lunar(y, m, d);
+  return !!(info.sFestival || info.lFestival || info.term);
+}
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+function buildCalendar(year, month, today) {
+  var firstDay = new Date(year, month - 1, 1).getDay();
+  var startOffset = (firstDay === 0) ? 6 : firstDay - 1;
+  var totalDays = daysInMonth(year, month);
+  var prevDays = daysInMonth(year, month === 1 ? 12 : month - 1);
+  var prevMonth = month === 1 ? 12 : month - 1;
+  var prevYear = month === 1 ? year - 1 : year;
+  var nextMonth = month === 12 ? 1 : month + 1;
+  var nextYear = month === 12 ? year + 1 : year;
+
+  var html = '<tr><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th></tr>';
+  var cells = [];
+  for (var i = startOffset - 1; i >= 0; i--) cells.push({ y: prevYear, m: prevMonth, d: prevDays - i, other: true });
+  for (var d = 1; d <= totalDays; d++) cells.push({ y: year, m: month, d: d, other: false });
+  var remain = 7 - (cells.length % 7);
+  if (remain < 7) for (var j = 1; j <= remain; j++) cells.push({ y: nextYear, m: nextMonth, d: j, other: true });
+
+  for (var c = 0; c < cells.length; c++) {
+    if (c % 7 === 0) html += '<tr>';
+    var cell = cells[c];
+    var label = getDayLabel(cell.y, cell.m, cell.d);
+    var cls = '';
+    if (cell.other) cls += ' other';
+    if (!cell.other && cell.d === today) cls += ' today';
+    var festCls = (!cell.other && isFestOrTerm(cell.y, cell.m, cell.d)) ? ' festival' : '';
+    html += '<td class="' + cls + '"><div class="solar">' + cell.d + '</div><div class="lunar' + festCls + '">' + label + '</div></td>';
+    if (c % 7 === 6) html += '</tr>';
+  }
+  return html;
+}
+
+// ===== 天气 =====
+var weatherCodeMap = {
+  0:['☀️','晴'],1:['🌤','晴'],2:['⛅','多云'],3:['☁️','阴'],
+  45:['🌫','雾'],48:['🌫','冻雾'],
+  51:['🌦','小雨'],53:['🌦','中雨'],55:['🌦','大雨'],
+  56:['🌧','冻雨'],57:['🌧','冻雨'],
+  61:['🌧','小雨'],63:['🌧','中雨'],65:['🌧','大雨'],
+  66:['🌧','冻雨'],67:['🌧','冻雨'],
+  71:['🌨','小雪'],73:['🌨','中雪'],75:['🌨','大雪'],77:['🌨','雪粒'],
+  80:['🌦','阵雨'],81:['🌧','阵雨'],82:['🌧','大阵雨'],
+  85:['🌨','阵雪'],86:['🌨','大阵雪'],
+  95:['⛈','雷暴'],96:['⛈','冰雹'],99:['⛈','冰雹']
+};
+var weekLabels = ['周日','周一','周二','周三','周四','周五','周六'];
+
+// JSONP 通用加载器（兼容 Kindle 旧浏览器）
+function jsonp(url, callbackParam, callback) {
+  var cbName = '_jsonp_' + Math.floor(Math.random() * 100000);
+  window[cbName] = function(data) {
+    callback(data);
+    try { delete window[cbName]; } catch(e) { window[cbName] = null; }
+    var s = document.getElementById(cbName);
+    if (s) s.parentNode.removeChild(s);
+  };
+  var script = document.createElement('script');
+  script.id = cbName;
+  script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + callbackParam + '=' + cbName;
+  document.getElementsByTagName('head')[0].appendChild(script);
+
+  // 超时处理
+  setTimeout(function() {
+    if (window[cbName]) {
+      window[cbName] = function(){};
+      callback(null);
+    }
+  }, 10000);
+}
+
+// 备用坐标（如果 IP 定位失败，请改成你所在城市的经纬度）
+// 当前默认：上海
+var fallbackLat = 31.23;
+var fallbackLon = 121.47;
+var fallbackCity = '上海';
+
+function loadWeather() {
+  // 方案1：用 JSONP 请求 ip-api
+  jsonp('http://ip-api.com/json/?lang=zh-CN', 'callback', function(geo) {
+    if (geo && geo.status === 'success') {
+      document.getElementById('weatherLoc').innerHTML = geo.city || geo.regionName || '';
+      fetchForecast(geo.lat, geo.lon);
+    } else {
+      // 方案2：尝试 XHR
+      tryXhr();
+    }
+  });
+}
+
+function tryXhr() {
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'http://ip-api.com/json/?lang=zh-CN', true);
+    xhr.timeout = 8000;
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            var geo = JSON.parse(xhr.responseText);
+            if (geo.status === 'success') {
+              document.getElementById('weatherLoc').innerHTML = geo.city || geo.regionName || '';
+              fetchForecast(geo.lat, geo.lon);
+              return;
+            }
+          } catch(e) {}
+        }
+        // 都失败了，用备用坐标
+        useFallback();
+      }
+    };
+    xhr.ontimeout = function() { useFallback(); };
+    xhr.send();
+  } catch(e) {
+    useFallback();
+  }
+}
+
+function useFallback() {
+  document.getElementById('weatherLoc').innerHTML = fallbackCity;
+  fetchForecast(fallbackLat, fallbackLon);
+}
+
+function fetchForecast(lat, lon) {
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+    '&longitude=' + lon +
+    '&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=7';
+
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 10000;
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            var data = JSON.parse(xhr.responseText);
+            renderWeather(data.daily);
+            return;
+          } catch(e) {}
+        }
+        document.getElementById('weatherLoc').innerHTML = '天气加载失败';
+      }
+    };
+    xhr.ontimeout = function() {
+      document.getElementById('weatherLoc').innerHTML = '天气请求超时';
+    };
+    xhr.send();
+  } catch(e) {
+    document.getElementById('weatherLoc').innerHTML = '天气加载失败';
+  }
+}
+
+function renderWeather(daily) {
+  var html = '';
+  var now = getCST();
+  var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+
+  for (var i = 0; i < daily.time.length && i < 7; i++) {
+    var dateStr = daily.time[i];
+    var parts = dateStr.split('-');
+    var dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    var dayLabel = (dateStr === todayStr) ? '今天' : weekLabels[dt.getDay()];
+    var isToday = (dateStr === todayStr) ? ' wtoday' : '';
+    var code = daily.weathercode[i];
+    var info = weatherCodeMap[code] || ['❓','未知'];
+    var tMax = Math.round(daily.temperature_2m_max[i]);
+    var tMin = Math.round(daily.temperature_2m_min[i]);
+
+    html += '<div class="weather-day' + isToday + '">';
+    html += '<div class="wd">' + dayLabel + '</div>';
+    html += '<div class="wi">' + info[0] + '</div>';
+    html += '<div class="wt">' + tMin + '~' + tMax + '°</div>';
+    html += '<div class="wdesc">' + info[1] + '</div>';
+    html += '</div>';
+  }
+  document.getElementById('weatherRow').innerHTML = html;
+}
+
+// ===== 时钟 =====
+var lastMin = '';
+function update() {
+  var now = getCST();
+  var h = pad(now.getHours());
+  var m = pad(now.getMinutes());
+  var curMin = h + ':' + m;
+
+  if (curMin !== lastMin) {
+    document.getElementById('time').innerHTML = curMin;
+    lastMin = curMin;
+
+    var y = now.getFullYear();
+    var mo = now.getMonth() + 1;
+    var d = now.getDate();
+    var weekdays = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    var info = solar2lunar(y, mo, d);
+
+    document.getElementById('todayInfo').innerHTML =
+      y + '年' + pad(mo) + '月' + pad(d) + '日  ' + weekdays[now.getDay()] +
+      '  ' + info.ganZhiYear + '年（' + info.animal + '）' + info.monthStr + info.dayStr;
+
+    document.getElementById('calTable').innerHTML = buildCalendar(y, mo, d);
+  }
+}
+
+setInterval(update, 1000);
+update();
+
+// 加载天气 + 每小时刷新
+loadWeather();
+setInterval(loadWeather, 3600000);
+
+// 防休眠
+setInterval(function() { window.scrollTo(0, 0); }, 30000);
+</script>
+</body>
+</html>
